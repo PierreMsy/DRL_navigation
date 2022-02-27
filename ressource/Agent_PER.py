@@ -9,10 +9,12 @@ import torch.autograd as autograd
 from ressource.Q_network import QNet, Dueling_QNet
 from ressource.ReplayBuffer import PrioritizedReplayBuffer
 
+from drl_nav.
+
 EPS_INIT, EPS_MIN, EPS_DECAY = 3e-1, 1e-2, .995 # espilon greedy policy
 GAMMA = .99                                     # discount rate
 LR = 1e-5                                       # learning rate
-TAU = 1.5e-2     #1e-3                          # soft target network updates
+TAU = 1.5e-2                                    # soft target network updates
 BETA_INIT, BETA_TO_1 = .4, 800                  # PER focus on prioritized experiences
 BUFFER_SIZE = 10_000                            # Replay buffer size
 BATCH_SIZE = 64                                 # Learning batch size
