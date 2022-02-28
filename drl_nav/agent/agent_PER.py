@@ -6,10 +6,9 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.autograd as autograd
 
-from ressource.Q_network import QNet, Dueling_QNet
-from ressource.ReplayBuffer import PrioritizedReplayBuffer
+from drl_nav.network import QNet, Dueling_QNet
+from drl_nav.component import PrioritizedReplayBuffer
 
-from drl_nav.
 
 EPS_INIT, EPS_MIN, EPS_DECAY = 3e-1, 1e-2, .995 # espilon greedy policy
 GAMMA = .99                                     # discount rate
@@ -22,7 +21,7 @@ UPDATE_EVERY = 10                               # number of actions between two 
 
 DEVICE = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-class Agent:
+class Agent_PER:
     '''
     Agent that will interact with the environnment to maximize the expected reward
     The agent will use a buffer

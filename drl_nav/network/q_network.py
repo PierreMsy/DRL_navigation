@@ -1,5 +1,7 @@
 from torch import nn, manual_seed
 import torch.nn.functional as F
+import torch.nn.functional as F
+
 
 class QNet(nn.Module):
     '''
@@ -61,6 +63,7 @@ class Dueling_QNet(nn.Module):
                                                  and equal to 2.
         '''
         self.seed = manual_seed(seed) 
+
         self.fc_common = nn.Linear(state_size, common_layer)
         self.do_common = nn.Dropout(p=.1)
         
