@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.autograd as autograd
 
-from drl_nav.network import QNet, Dueling_QNet
+from drl_nav.network import VanillaQNet, Dueling_QNet
 from drl_nav.component import PrioritizedReplayBuffer
 
 
@@ -43,8 +43,8 @@ class Agent_PER:
             self.QNet_local = Dueling_QNet(state_size, action_size, seed)
             self.QNet_target = Dueling_QNet(state_size, action_size, seed)
         else:
-            self.QNet_local = QNet(state_size, action_size, seed)
-            self.QNet_target = QNet(state_size, action_size, seed)
+            self.QNet_local = VanillaQNet(state_size, action_size, seed)
+            self.QNet_target = VanillaQNet(state_size, action_size, seed)
         
         self.replay_buffer = PrioritizedReplayBuffer(BUFFER_SIZE)
         self.optimizer = optim.Adam(self.QNet_local.parameters(), lr=LR)  

@@ -3,14 +3,14 @@ import torch.nn.functional as F
 import torch.nn.functional as F
 
 
-class QNet(nn.Module):
+class VanillaQNet(nn.Module):
     '''
     Q-network. 
     Deep network that learn the relationship between the states and the action values
     '''
     
     def __init__(self, state_size, action_size, seed):
-        super(QNet, self).__init__()
+        super(VanillaQNet, self).__init__()
         '''Neural network that maps the state to action values
         
         Params
