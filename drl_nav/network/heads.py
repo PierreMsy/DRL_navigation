@@ -17,16 +17,18 @@ class QNet(nn.Module):
     
     def __init__(self, body, action_size):
         super(QNet, self).__init__()
-        
+
         self.body = body
         self.action_size = action_size
         self.hidden_layers_dim = [2888, 128, 64]
         
-        self.hidden_layers = [
+        self.hidden_layers = nn.ModuleList([
             nn.Linear(size_in, size_out) for size_in, size_out in
             zip(self.hidden_layers_dim[:-1],  self.hidden_layers_dim[1:])
-        ]
+        ])
         self.output_layer = nn.Linear(self.hidden_layers_dim[-1], action_size)
+
+        self.optimizer = torch.optim.Adam(self.parameters()) # set the learning rate
         
     def forward(self, x):
         
@@ -49,12 +51,13 @@ class AuxNet(nn.Module):
         self.body = body
         self.hidden_layers_dim = [2888, 128]
 
-        self.hidden_layers = [
+        self.hidden_layers = nn.ModuleList([
             nn.Linear(size_in, size_out) for size_in, size_out in
             zip(self.hidden_layers_dim[:-1],  self.hidden_layers_dim[1:])
-        ]
-
+        ])
         self.output_layer = nn.Linear(self.hidden_layers_dim[-1], n_directions * n_colors)
+
+        self.optimizer = torch.optim.Adam(self.parameters()) # set the learning rate
 
     def forward(self, state):
 
