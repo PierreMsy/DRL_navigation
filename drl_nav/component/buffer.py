@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import random
 
+
 DEVICE = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class ReplayBuffer:
@@ -41,13 +42,10 @@ class ReplayBuffer:
 
         return states, actions, rewards, next_states, dones
     
-    #region PRIVATE
-
     def __len__(self):
         return len(self.buffer)
-
-     #endregion
         
+
 E = .1   # lower bound for the priority of an experience
 A = .75  # Parametrize the trade of between uniform sampling (0) and sampling based only on the priority 
         
@@ -95,10 +93,10 @@ class PrioritizedReplayBuffer:
         priorities = torch.from_numpy(np.array(priority_np)).float().to(DEVICE)
 
         return states, actions, rewards, next_states, dones, priorities
-    
-    #region PRIVATE
 
     def __len__(self):
         return len(self.buffer_experience)
 
-     #endregion
+
+class ImageBuffer:
+    pass
