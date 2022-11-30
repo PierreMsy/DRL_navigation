@@ -77,20 +77,24 @@ class LabelizerNet(nn.Module):
     """
     def __init__(self, n_pannels=3):
         super(LabelizerNet, self).__init__()
-        self.n_pannels = n_pannels # left middle # right
+        self.n_pannels = n_pannels # left middle right
         self.avg_pool = nn.AvgPool2d(kernel_size=6, stride=2)        
     
     def forward(self, state):
+        # TODO process multiple image at once.
         """
         Parse the input state to detect directionally near bananas.
         
         Args:
-            state (torch Tensor): state 84*84*3 representation
+            state (numpy nd array): state 1*84*84*3 representation
         
         Returns:
             np.ndarray: labels vector for yellow banana detection by pannel.
             np.ndarray: labels vector for blue banana detection by pannel.
         """
+        state = torch.squeeze(
+            torch.from_numpy(np.moveaxis(state, 3, 1)).float())
+
         # The intent of average pooling is to blur the image to only detect near bananas.
         output = self.avg_pool(state)
         output_hsv = np.apply_along_axis(rgb_to_hsv, 2, output.numpy().T)
@@ -113,4 +117,6 @@ class LabelizerNet(nn.Module):
             label_yellow_pannel = int(np.max(pannel_mask) == 1)
             labels_yellow.append(label_yellow_pannel)
         
-        return np.array(labels_yellow), np.array(labels_blue)
+        labels_banana = np.concatenate((labels_yellow, labels_blue)).reshape(1,-1)
+        
+        return labels_banana

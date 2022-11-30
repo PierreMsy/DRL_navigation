@@ -7,6 +7,16 @@ class Schedule():
         self.end_value = end_value
         self.bound_function = max if start_value > end_value else min
 
+    #factory method
+    @classmethod
+    def instantiate_from_config(cls, config):
+        instance = cls(
+            start_value=config.epsilon.start_value,
+            end_value=config.epsilon.end_value,
+            step=config.epsilon.step
+        )
+        return instance
+
 
 class LinearSchedule(Schedule):
     """
