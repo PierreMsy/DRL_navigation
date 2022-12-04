@@ -13,7 +13,7 @@ class Schedule():
         instance = cls(
             start_value=config.epsilon.start_value,
             end_value=config.epsilon.end_value,
-            step=config.epsilon.step
+            steps=config.epsilon.steps
         )
         return instance
 

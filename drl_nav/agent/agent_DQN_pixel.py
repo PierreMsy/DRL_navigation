@@ -14,6 +14,7 @@ class Agent_DQN_pixel:
         '''
         '''
         self.context = context
+        self.config = config
         self.epsilon = ExponentialSchedule.instantiate_from_config(config)
 
         conv_body = ConvBody()
@@ -26,8 +27,8 @@ class Agent_DQN_pixel:
         self.criterion_q = torch.nn.MSELoss()
         self.criterion_aux = torch.nn.CrossEntropyLoss()
 
-        self.replay_buffer = ReplayBuffer()
-        self.image_buffer = ImageBuffer()
+        self.replay_buffer = ReplayBuffer(config.buffer_size)
+        self.image_buffer = ImageBuffer(config.image_buffer_size)
 
         self.record_loss_image = dict()
         self.record_loss = dict()
@@ -43,8 +44,10 @@ class Agent_DQN_pixel:
             action (int): integer corresponging to the choosen action
         """
         if np.random.rand() > self.epsilon():
-            return np.random.randint(high=self.context.action_size)
+            return np.random.randint(low=0, high=self.context.action_size)
         else:
+            state = torch.from_numpy(np.moveaxis(state, 3, 1)).float().to(self.config.device)
+
             self.q_network_local.eval()
             with torch.no_grad():
                 q_values = self.q_network_local.forward(state)
@@ -52,28 +55,32 @@ class Agent_DQN_pixel:
 
             return np.argmax(q_values).item()
 
-
     def step(self, state, action, reward, next_state, done):
+        """
 
+        """
         self.t_step += 1
         self.replay_buffer.add(state, action, reward, next_state, done)
 
         if self.t_step % self.config.add_image_every == 0:
-            
-            # TODO Avoid so much torch numpy conversions.
             labels_banana = self.labelizer(state)
-            banana_labels = torch.from_numpy(labels_banana).float()
-            self.image_buffer.add(state, banana_labels)
+            self.image_buffer.add(state, labels_banana)
 
-        if self.t_step % self.config.learn_every == 0:
+        if ((self.t_step % self.config.learn_every == 0) and
+                (len(self.replay_buffer) > self.config.batch_size)
+            ):
             self.learn()
 
-        if self.t_step % self.config.learn_detection_every == 0:
+        if ((self.t_step % self.config.learn_detection_every == 0) and
+                (len(self.image_buffer) > self.config.image_batch_size)
+            ):
             self.learn_bananas_detection()
 
     def learn_bananas_detection(self):
+        """
 
-        images, labels = self.image_buffer.sample()
+        """
+        images, labels = self.image_buffer.sample(self.config.image_batch_size)
         preds = self.auxiliary_network(images)
 
         self.auxiliary_network.optimizer.zero_grad()
@@ -85,11 +92,11 @@ class Agent_DQN_pixel:
 
     def learn(self):
         
-        states, actions, rewards, next_states, dones = self.replay_buffer.sample()
+        states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.config.batch_size)
 
         with torch.no_grad():
-            q_ns_local = self.q_network_local(next_states).detach()
-            q_ns_target = self.q_network_target(next_states).detach()
+            q_ns_local = self.q_network_local(next_states)
+            q_ns_target = self.q_network_target(next_states)
             max_q_ns = q_ns_target(torch.argmax(q_ns_local, axis=1))
 
         q_target = rewards + self.config.gamma * max_q_ns * (1 - dones)
