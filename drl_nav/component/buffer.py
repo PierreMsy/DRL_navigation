@@ -2,18 +2,33 @@ from collections import namedtuple, deque
 import torch
 import numpy as np
 import random
+from typing import Tuple
 
 
 DEVICE = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-class ReplayBuffer:
+
+class Buffer:
+    
+    def __init__(self, buffer_size) -> None:
+        self.buffer = deque(maxlen=buffer_size)
+    
+    def add():
+        pass
+
+    def sample():
+        pass
+    
+    def __len__(self):
+        return len(self.buffer)
+
+class ReplayBuffer(Buffer):
     '''
     Buffer that hold experiences tuple for future learning.
     '''
     
     def __init__(self, buffer_size):
-        
-        self.buffer = deque(maxlen=buffer_size)
+        super().__init__(buffer_size)
         self.Experience = namedtuple("Experience",
             ['state', 'action', 'reward', 'next_state', 'done']) 
 
@@ -41,23 +56,19 @@ class ReplayBuffer:
         dones = torch.from_numpy(np.array(dones_np).astype(np.uint8)).float().to(DEVICE)
 
         return states, actions, rewards, next_states, dones
-    
-    def __len__(self):
-        return len(self.buffer)
         
 
 E = .1   # lower bound for the priority of an experience
 A = .75  # Parametrize the trade of between uniform sampling (0) and sampling based only on the priority 
         
-class PrioritizedReplayBuffer:
+class PrioritizedReplayBuffer(Buffer):
     '''
     Buffer that hold experiences tuple for future learning.
     The PER sample the experiences with respect to their priorites in order to improve
     the learning by emphasizing on experiences that were poorly evaluated in the past.
     '''
     def __init__(self, buffer_size):
-        
-        self.buffer_experience = deque(maxlen=buffer_size)
+        super().__init__(buffer_size)
         self.buffer_priority = deque(maxlen=buffer_size)
         self.Experience = namedtuple("Experience",
             ['state', 'action', 'reward', 'next_state', 'done', 'priority']) 
@@ -71,7 +82,7 @@ class PrioritizedReplayBuffer:
         experience = self.Experience(
             state=state, action=action, reward=reward, next_state=next_state, done=done, priority=priority)
         
-        self.buffer_experience.append(experience)
+        self.buffer.append(experience)
         self.buffer_priority.append(priority)
     
     def sample(self, sample_size):
@@ -79,7 +90,7 @@ class PrioritizedReplayBuffer:
         Sample as much experiences as requested by the sample_size with respect to the
         priorities of all the experiences stored
         '''
-        sampled_experiences = random.choices(self.buffer_experience,
+        sampled_experiences = random.choices(self.buffer,
                                              weights=self.buffer_priority, cum_weights=None,
                                              k=sample_size)
         
@@ -94,9 +105,25 @@ class PrioritizedReplayBuffer:
 
         return states, actions, rewards, next_states, dones, priorities
 
-    def __len__(self):
-        return len(self.buffer_experience)
 
+class ImageBuffer(Buffer):
+    
+    def __init__(self, buffer_size) -> None:
+        super().__init__(buffer_size)
+        self.labeledImg = namedtuple("labeledImg", ['state', 'labels_banana']) 
 
-class ImageBuffer:
-    pass
+    def add(self, state, labels_banana) -> None:
+        """ Add a banana labelized state to the buffer. """
+        labeledImg = self.labeledImg(state=state, labels_banana=labels_banana)
+        self.buffer.append(labeledImg)
+
+    def sample(self, sample_size) -> Tuple[list, list]:
+        ''' ''' 
+        sampled_labeledImgs = random.sample(self.buffer, sample_size)
+        
+        states, labels_banana = zip(*sampled_labeledImgs)
+        #torch.from_numpy(np.array(states)).float().to(DEVICE)
+        states = torch.from_numpy(np.moveaxis(states, 3, 1)).float().to(DEVICE)
+        labels_banana = torch.from_numpy(states).float().to(DEVICE)
+
+        return states, labels_banana
