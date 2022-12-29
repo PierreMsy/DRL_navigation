@@ -127,3 +127,83 @@ class ImageBuffer(Buffer):
         labels_banana = torch.from_numpy(states).float().to(DEVICE)
 
         return states, labels_banana
+
+class ReplayBuffer2():
+    '''
+    Buffer that hold experiences tuple for future learning.
+    '''
+    def __init__(self, buffer_size: int, device: str) -> None:
+        self.device = device
+        self.buffer_size = buffer_size
+        self.buffer = np.zeros(buffer_size)
+        self.len = 0
+        self.index = 0
+        self.Experience = namedtuple("Experience",
+            ['state', 'action', 'reward', 'next_state', 'done'])
+
+    def add(self, state, action, reward, next_state, done) -> None:
+        '''
+        Create an experience tuple from one interaction and add it to the buffer
+        '''
+        experience = self.Experience(
+            state=state, action=action, reward=reward, next_state=next_state, done=done)
+        
+        self.buffer[self.index] = experience
+        self.index = (self.index + 1) % self.buffer_size
+        self.len = min(self.len + 1, self.buffer_size)
+
+    def sample(self, sample_size: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        '''
+        Random sample as much experiences as requested by the sample_size 
+        '''
+        sampled_indexes = np.random.choice(np.arange(self.len), size=sample_size)
+        sampled_experiences = self.buffer[sampled_indexes] 
+
+        states, actions, rewards, next_states, dones = zip(*sampled_experiences)
+
+        states = torch.stack(states).to(self.device)
+        actions = torch.tensor(actions, dtype=torch.float).to(self.device)
+        rewards = torch.tensor(rewards, dtype=torch.float).to(self.device)
+        next_states = torch.stack(next_states).to(self.device)
+        dones = torch.tensor(dones, dtype=torch.int).to(self.device)
+
+        return states, actions, rewards, next_states, dones
+    
+    def __len__(self) -> int:
+        return len(self.len)
+
+class ImageBuffer2():
+    
+    def __init__(self, buffer_size, device) -> None:
+        self.device = device
+        self.buffer_size = buffer_size
+        self.buffer = np.zeros(buffer_size)
+        self.len = 0
+        self.index = 0
+        self.labeledImg = namedtuple("labeledImg", ['state', 'labels_banana']) 
+
+    def add(self, state: torch.Tensor, labels_banana: torch.Tensor) -> None:
+        """
+        Add a banana labeled state to the buffer. 
+        """
+        labeled_img = self.labeledImg(state=state, labels_banana=labels_banana)
+
+        self.buffer[self.index] = labeled_img
+        self.index = (self.index + 1) % self.buffer_size
+        self.len = min(self.len + 1, self.buffer_size)
+
+    def sample(self, sample_size: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        '''
+        Random sample as much labeled images as requested by the sample_size
+        ''' 
+        sampled_indexes = np.random.choice(np.arange(self.len), size=sample_size)
+        sampled_labeled_imgs = self.buffer[sampled_indexes] 
+
+        states, labels_banana = zip(*sampled_labeled_imgs)
+        states = torch.stack(states).to(self.device)
+        labels_banana = torch.stack(labels_banana).to(self.device)
+
+        return states, labels_banana
+
+    def __len__(self) -> int:
+        return len(self.len)
