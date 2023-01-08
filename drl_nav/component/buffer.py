@@ -5,7 +5,7 @@ import random
 from typing import Tuple
 
 
-DEVICE = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class Buffer:
@@ -135,7 +135,7 @@ class ReplayBuffer2():
     def __init__(self, buffer_size: int, device: str) -> None:
         self.device = device
         self.buffer_size = buffer_size
-        self.buffer = np.zeros(buffer_size)
+        self.buffer = np.zeros(buffer_size, dtype=object)
         self.len = 0
         self.index = 0
         self.Experience = namedtuple("Experience",
@@ -162,7 +162,7 @@ class ReplayBuffer2():
         states, actions, rewards, next_states, dones = zip(*sampled_experiences)
 
         states = torch.stack(states).to(self.device)
-        actions = torch.tensor(actions, dtype=torch.float).to(self.device)
+        actions = torch.tensor(actions, dtype=torch.long).to(self.device) # long required for index in torch
         rewards = torch.tensor(rewards, dtype=torch.float).to(self.device)
         next_states = torch.stack(next_states).to(self.device)
         dones = torch.tensor(dones, dtype=torch.int).to(self.device)
@@ -170,14 +170,14 @@ class ReplayBuffer2():
         return states, actions, rewards, next_states, dones
     
     def __len__(self) -> int:
-        return len(self.len)
+        return self.len
 
 class ImageBuffer2():
     
     def __init__(self, buffer_size, device) -> None:
         self.device = device
         self.buffer_size = buffer_size
-        self.buffer = np.zeros(buffer_size)
+        self.buffer = np.zeros(buffer_size, dtype=object)
         self.len = 0
         self.index = 0
         self.labeledImg = namedtuple("labeledImg", ['state', 'labels_banana']) 
@@ -206,4 +206,4 @@ class ImageBuffer2():
         return states, labels_banana
 
     def __len__(self) -> int:
-        return len(self.len)
+        return self.len

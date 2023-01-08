@@ -1,1 +1,1 @@
-from .buffer import ReplayBuffer, PrioritizedReplayBuffer, ImageBuffer
+from .buffer import ReplayBuffer, PrioritizedReplayBuffer, ImageBuffer, ReplayBuffer2, ImageBuffer2

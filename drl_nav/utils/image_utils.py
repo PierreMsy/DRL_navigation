@@ -1,3 +1,6 @@
+import numpy as np
+import torch
+
 import colorsys
 
 
@@ -32,3 +35,13 @@ def is_blue(hsv):
     val_ok = .3 <= val
 
     return hue_ok & sat_ok & val_ok
+
+def to_np_image(torch_image: torch.Tensor):
+    """
+    torch_image torch.Tensor(float): [n_channels, H, W]
+    torch_image numpy.ndarray(float): [H, W, n_channels]
+    """
+    x = np.expand_dims(torch_image.numpy(), 0)
+    np_image = np.squeeze(np.moveaxis(x, 1, 3))
+    
+    return np_image

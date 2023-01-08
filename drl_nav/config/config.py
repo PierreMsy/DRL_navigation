@@ -10,6 +10,8 @@ class AgentConfiguration:
     def __init__(
         self,
         device=None,
+        gamma=None,
+        tau=None,
         batch_size=None,
         image_batch_size=None,
         buffer_size=None,
@@ -30,6 +32,8 @@ class AgentConfiguration:
 
         # Set attribute
         self.set_attr('device', device)
+        self.set_attr('gamma', gamma)
+        self.set_attr('tau', tau)
         self.set_attr('batch_size', batch_size)
         self.set_attr('image_batch_size', image_batch_size)
         self.set_attr('buffer_size', buffer_size)

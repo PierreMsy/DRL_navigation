@@ -3,7 +3,7 @@ import torch
 
 from drl_nav.utils.schedule import ExponentialSchedule
 from drl_nav.network import QNet, AuxNet, LabelizerNet, ConvBody
-from drl_nav.component import ReplayBuffer, ImageBuffer
+from drl_nav.component import ReplayBuffer2, ImageBuffer2
 
 
 class Agent_DQN_pixel:
@@ -27,8 +27,8 @@ class Agent_DQN_pixel:
         self.criterion_q = torch.nn.MSELoss()
         self.criterion_aux = torch.nn.CrossEntropyLoss()
 
-        self.replay_buffer = ReplayBuffer(config.buffer_size)
-        self.image_buffer = ImageBuffer(config.image_buffer_size)
+        self.replay_buffer = ReplayBuffer2(config.buffer_size, config.device)
+        self.image_buffer = ImageBuffer2(config.image_buffer_size, config.device)
 
         self.record_loss_image = dict()
         self.record_loss = dict()
@@ -60,6 +60,12 @@ class Agent_DQN_pixel:
 
         """
         self.t_step += 1
+
+        state = torch.squeeze(
+            torch.from_numpy(np.moveaxis(state, 3, 1)).float().to(self.config.device))
+        next_state = torch.squeeze(
+            torch.from_numpy(np.moveaxis(next_state, 3, 1)).float().to(self.config.device))
+
         self.replay_buffer.add(state, action, reward, next_state, done)
 
         if self.t_step % self.config.add_image_every == 0:
@@ -86,22 +92,27 @@ class Agent_DQN_pixel:
         self.auxiliary_network.optimizer.zero_grad()
         loss = self.criterion_aux(preds, labels)
         loss.backward()
-        self.auxiliary_network.step()
+        self.auxiliary_network.optimizer.step()
 
-        self.record_loss_images[self.t_step] = loss.item()
+        self.record_loss_image[self.t_step] = loss.item()
 
     def learn(self):
+        """
+        double DQN :
+            TD_target = r + gamma * q(S', argmax_a(q(S',a,w)), w')
+            Δw = α(TD_target - q(S, A, w))∇w(q(S, A, w))
+        """
         
         states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.config.batch_size)
 
         with torch.no_grad():
             q_ns_local = self.q_network_local(next_states)
             q_ns_target = self.q_network_target(next_states)
-            max_q_ns = q_ns_target(torch.argmax(q_ns_local, axis=1))
+            max_q_ns = q_ns_target.gather(1, torch.argmax(q_ns_local, axis=1).unsqueeze(1))
 
         q_target = rewards + self.config.gamma * max_q_ns * (1 - dones)
 
-        q = self.q_network_local(states)[actions]
+        q = self.q_network_local(states).gather(1, actions.unsqueeze(1))
 
         self.q_network_local.optimizer.zero_grad()
         loss = self.criterion_q(q, q_target)
@@ -113,4 +124,10 @@ class Agent_DQN_pixel:
 
         self.record_loss[self.t_step] = loss.item()
 
-        
+    def soft_update(self, net_local, net_target, tau):
+        """
+        Soft update model parameters.
+            θ_target = τ*θ_local + (1 - τ)*θ_target
+        """
+        for local_param, target_param in zip(net_local.parameters(), net_target.parameters()):
+            target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)

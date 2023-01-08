@@ -5,7 +5,7 @@ from torch import nn
 import torch.nn.functional as F
 
 from drl_nav.utils.image_utils import (
-    rgb_to_hsv, is_yellow, is_blue
+    rgb_to_hsv, is_yellow, is_blue, to_np_image
 )
 
 
@@ -75,12 +75,12 @@ class LabelizerNet(nn.Module):
     Network that help the vision part of the DQN network training
     by giving it banana labels.
     """
-    def __init__(self, n_pannels=3):
+    def __init__(self, n_pannels=3) -> None:
         super(LabelizerNet, self).__init__()
         self.n_pannels = n_pannels # left middle right
         self.avg_pool = nn.AvgPool2d(kernel_size=6, stride=2)        
     
-    def forward(self, state):
+    def forward(self, state: torch.Tensor) -> torch.Tensor:
         # TODO process multiple image at once.
         """
         Parse the input state to detect directionally near bananas.
@@ -92,12 +92,10 @@ class LabelizerNet(nn.Module):
             np.ndarray: labels vector for yellow banana detection by pannel.
             np.ndarray: labels vector for blue banana detection by pannel.
         """
-        state = torch.squeeze(
-            torch.from_numpy(np.moveaxis(state, 3, 1)).float())
-
         # The intent of average pooling is to blur the image to only detect near bananas.
         output = self.avg_pool(state)
-        output_hsv = np.apply_along_axis(rgb_to_hsv, 2, output.numpy().T)
+        output_np = to_np_image(output)
+        output_hsv = np.apply_along_axis(rgb_to_hsv, 2, output_np)
         
         mask_bananas = (
             np.apply_along_axis(is_yellow, 2, output_hsv).astype(int) - 
@@ -111,12 +109,13 @@ class LabelizerNet(nn.Module):
             
             pannel_mask = mask_bananas[:, lower_bound: higher_bound] 
             
-            label_blue_pannel = int(np.min(pannel_mask) == -1) # np min would be sufficient.
+            label_blue_pannel = float(np.min(pannel_mask) == -1) # np min would be sufficient.
             labels_blue.append(label_blue_pannel)
             
-            label_yellow_pannel = int(np.max(pannel_mask) == 1)
+            label_yellow_pannel = float(np.max(pannel_mask) == 1)
             labels_yellow.append(label_yellow_pannel)
         
-        labels_banana = np.concatenate((labels_yellow, labels_blue)).reshape(1,-1)
+        labels_banana = np.concatenate((labels_yellow, labels_blue))
+        labels_banana = torch.from_numpy(labels_banana)
         
         return labels_banana
