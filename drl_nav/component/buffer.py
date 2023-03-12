@@ -201,7 +201,7 @@ class ImageBuffer2():
 
         states, labels_banana = zip(*sampled_labeled_imgs)
         states = torch.stack(states).to(self.device)
-        labels_banana = torch.stack(labels_banana).to(self.device)
+        labels_banana = torch.stack(labels_banana).float().to(self.device)
 
         return states, labels_banana
 

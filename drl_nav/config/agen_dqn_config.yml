@@ -11,4 +11,4 @@
   epsilon: 
     start_value: .5
     end_value: .01
-    steps: 1000
+    steps: 100_000

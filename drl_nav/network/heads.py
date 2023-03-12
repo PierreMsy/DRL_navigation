@@ -62,10 +62,8 @@ class AuxNet(nn.Module):
     def forward(self, state):
 
         x = self.body(state)
-
         for layer in self.hidden_layers:
             x = F.relu(layer(x))
-
         output = torch.sigmoid(self.output_layer(x))
 
         return output
