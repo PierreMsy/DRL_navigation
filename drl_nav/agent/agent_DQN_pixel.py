@@ -2,26 +2,28 @@ import numpy as np
 import torch
 
 from drl_nav.utils.schedule import ExponentialSchedule
-from drl_nav.network import QNet, AuxNet, LabelizerNet, ConvBody
+from drl_nav.network import QNet, AuxNet, LabelizerNet, NetworkCreator
 from drl_nav.component import ReplayBuffer2, ImageBuffer2
 
 
 class Agent_DQN_pixel:
     '''
+    Deep Q Learning agent that will interact with the environment 
+    to maximize its expected reward.
     '''
-
     def __init__(self, context, config):
-        '''
-        '''
         self.context = context
         self.config = config
         self.epsilon = ExponentialSchedule.instantiate_from_config(config)
 
-        conv_body = ConvBody()
-        self.q_network_local = QNet(conv_body, context.action_size)
-        self.q_network_target = QNet(ConvBody(), context.action_size)
+        # Actor_network_creator().create(context, config.actor)
+        network_body = NetworkCreator().create(config.network_body)
+        self.q_network_local = QNet(network_body, config.network_head, context.action_size)
+        self.q_network_target = QNet(
+            NetworkCreator().create(config.network_body),
+            config.network_head, context.action_size)
         self.q_network_target.load_state_dict(self.q_network_local.state_dict())
-        self.auxiliary_network = AuxNet(conv_body)
+        self.auxiliary_network = AuxNet(network_body)
         self.labelizer = LabelizerNet()
         
         self.criterion_q = torch.nn.MSELoss()
@@ -30,7 +32,7 @@ class Agent_DQN_pixel:
         self.replay_buffer = ReplayBuffer2(config.buffer_size, config.device)
         self.image_buffer = ImageBuffer2(config.image_buffer_size, config.device)
 
-        self.mask_learning = [100_000, 200_000]
+        # self.mask_learning = [10_000, 20_000]
 
         self.record_loss_image = dict()
         self.record_loss = dict()
@@ -95,8 +97,9 @@ class Agent_DQN_pixel:
 
         self.auxiliary_network.optimizer.zero_grad()
         loss = self.criterion_aux(preds, labels)
-        loss.backward()
-        self.auxiliary_network.optimizer.step()
+        if not (self.mask_learning[0] <= self.t_step <= self.mask_learning[1]):
+            loss.backward()
+            self.auxiliary_network.optimizer.step()
 
         self.record_loss_image[self.t_step] = loss.item()
 
@@ -120,7 +123,7 @@ class Agent_DQN_pixel:
         loss.backward()
         self.q_network_local.optimizer.step()
 
-        # Soft updates the target network
+        # Soft updates the target network   
         self.soft_update(self.q_network_local, self.q_network_target, self.config.tau)
 
         self.record_loss[self.t_step] = loss.item()
@@ -143,8 +146,5 @@ class Agent_DQN_pixel:
         _must_learn = True
         _must_learn &= self.t_step % self.config.learn_detection_every == 0
         _must_learn &= len(self.image_buffer) > self.config.image_batch_size
-        
-        if self.mask_learning[0] <= self.t_step <= self.mask_learning[1]:
-            _must_learn = False
 
         return _must_learn

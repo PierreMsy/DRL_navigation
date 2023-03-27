@@ -15,12 +15,12 @@ class QNet(nn.Module):
     Deep network that learn the relationship between the states and the action values.
     """
     
-    def __init__(self, body, action_size):
+    def __init__(self, body, config, action_size):
         super(QNet, self).__init__()
 
         self.body = body
         self.action_size = action_size
-        self.hidden_layers_dim = [2888, 128, 64]
+        self.hidden_layers_dim = [self.body.output_size] + config.hidden_layers
         
         self.hidden_layers = nn.ModuleList([
             nn.Linear(size_in, size_out) for size_in, size_out in
