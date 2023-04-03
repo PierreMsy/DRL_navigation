@@ -12,3 +12,9 @@
     start_value: .5
     end_value: .01
     steps: 100_000
+  network:
+    body:
+      type: "conv"
+      input_size: 84
+    head:
+      hidden_layers: [128, 64]

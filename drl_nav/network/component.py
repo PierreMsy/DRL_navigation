@@ -7,9 +7,9 @@ class NetworkCreator():
     '''
     def __init__(self):
         self.builders = {
-            'conv': lambda args, kwargs : ConvBody(args, **kwargs),
-            'dummy' : lambda args, kwargs : DummyBody(args, **kwargs),
+            'conv': lambda kwargs: ConvBody(**kwargs),
+            'dummy' : lambda kwargs: DummyBody(**kwargs),
         }
 
-    def create(self, network, args, kwargs):
-        return self.builders[network](args, kwargs)
+    def create(self, network_config):
+        return self.builders[network_config.type](network_config.to_dict())

@@ -19,7 +19,9 @@ class AgentConfiguration:
         learn_every=None,
         learn_detection_every=None,
         add_image_every=None,
-        epsilon={}
+        epsilon={},
+        network_head={},
+        network_body={},
         ) -> None:
         """
         """
@@ -29,6 +31,8 @@ class AgentConfiguration:
 
         # Update config dict based on the provided specific configurations    
         update_dict(self.dict_config['epsilon'], epsilon)
+        update_dict(self.dict_config['network']['head'], network_head)
+        update_dict(self.dict_config['network']['body'], network_body)
 
         # Set attribute
         self.set_attr('device', device)
@@ -42,6 +46,8 @@ class AgentConfiguration:
         self.set_attr('learn_detection_every', learn_detection_every)
         self.set_attr('add_image_every', add_image_every)
         self.epsilon = Epsilon(**self.dict_config['epsilon'])
+        self.network_head = Network(**self.dict_config['network']['head'])
+        self.network_body = Network(**self.dict_config['network']['body'])
 
     def set_attr(self, attr, value):
         '''
@@ -67,6 +73,23 @@ class Epsilon:
         self.start_value = start_value
         self.end_value = end_value
         self.steps = steps
+
+class Network:
+    """
+    Esplion policy exploration configuration
+    """
+    def __init__(
+        self,
+        type=None,
+        hidden_layers=[],
+        input_size: int=None,
+        ) -> None:
+        self.input_size = input_size
+        self.hidden_layers = hidden_layers
+        self.type = type
+        
+    def to_dict(self):
+        return vars(self)
 
 def update_dict(d_ref, d_ovr):
     """
