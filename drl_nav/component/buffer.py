@@ -162,10 +162,11 @@ class ReplayBuffer2():
         states, actions, rewards, next_states, dones = zip(*sampled_experiences)
 
         states = torch.stack(states).to(self.device)
-        actions = torch.tensor(actions, dtype=torch.long).to(self.device) # long required for index in torch
-        rewards = torch.tensor(rewards, dtype=torch.float).to(self.device)
+        # long required for index in torch
+        actions = torch.tensor(actions, dtype=torch.long).view(-1,1).to(self.device)
+        rewards = torch.tensor(rewards, dtype=torch.float).view(-1,1).to(self.device)
         next_states = torch.stack(next_states).to(self.device)
-        dones = torch.tensor(dones, dtype=torch.int).to(self.device)
+        dones = torch.tensor(dones, dtype=torch.int).view(-1,1).to(self.device)
 
         return states, actions, rewards, next_states, dones
     

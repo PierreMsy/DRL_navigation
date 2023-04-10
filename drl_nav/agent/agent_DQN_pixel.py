@@ -4,6 +4,7 @@ import torch
 from drl_nav.utils.schedule import ExponentialSchedule
 from drl_nav.network import QNet, AuxNet, LabelizerNet, NetworkCreator
 from drl_nav.component import ReplayBuffer2, ImageBuffer2
+from drl_nav.config.constant import Input_type as INPUT
 
 
 class Agent_DQN_pixel:
@@ -16,7 +17,6 @@ class Agent_DQN_pixel:
         self.config = config
         self.epsilon = ExponentialSchedule.instantiate_from_config(config)
 
-        # Actor_network_creator().create(context, config.actor)
         network_body = NetworkCreator().create(config.network_body)
         self.q_network_local = QNet(network_body, config.network_head, context.action_size)
         self.q_network_target = QNet(
@@ -51,7 +51,7 @@ class Agent_DQN_pixel:
         if np.random.rand() < self.epsilon():
             return np.random.randint(low=0, high=self.context.action_size)
         else:
-            state = torch.from_numpy(np.moveaxis(state, 3, 1)).float().to(self.config.device)
+            state = self.convert_state_to_torch(state) 
 
             self.q_network_local.eval()
             with torch.no_grad():
@@ -69,15 +69,11 @@ class Agent_DQN_pixel:
         of the task or the bananas detection.
         """
         self.t_step += 1
-
-        state = torch.squeeze(
-            torch.from_numpy(np.moveaxis(state, 3, 1)).float().to(self.config.device))
-        next_state = torch.squeeze(
-            torch.from_numpy(np.moveaxis(next_state, 3, 1)).float().to(self.config.device))
-
+        state = torch.squeeze(self.convert_state_to_torch(state))
+        next_state = torch.squeeze(self.convert_state_to_torch(next_state))
         self.replay_buffer.add(state, action, reward, next_state, done)
 
-        if self.t_step % self.config.add_image_every == 0:
+        if self._must_labelize_image():
             labels_banana = self.labelizer(state)
             self.image_buffer.add(state, labels_banana)
 
@@ -97,9 +93,8 @@ class Agent_DQN_pixel:
 
         self.auxiliary_network.optimizer.zero_grad()
         loss = self.criterion_aux(preds, labels)
-        if not (self.mask_learning[0] <= self.t_step <= self.mask_learning[1]):
-            loss.backward()
-            self.auxiliary_network.optimizer.step()
+        loss.backward()
+        self.auxiliary_network.optimizer.step()
 
         self.record_loss_image[self.t_step] = loss.item()
 
@@ -116,7 +111,7 @@ class Agent_DQN_pixel:
             q_ns_target = self.q_network_target(next_states)
             max_q_ns = q_ns_target.gather(1, torch.argmax(q_ns_local, axis=1).unsqueeze(1))
         q_target = rewards + self.config.gamma * max_q_ns * (1 - dones)
-        q = self.q_network_local(states).gather(1, actions.unsqueeze(1))
+        q = self.q_network_local(states).gather(1, actions)
 
         self.q_network_local.optimizer.zero_grad()
         loss = self.criterion_q(q, q_target)
@@ -144,7 +139,21 @@ class Agent_DQN_pixel:
 
     def _must_learn_bananas_detection(self) -> bool:
         _must_learn = True
+        _must_learn &= self.context.input_type == INPUT.IMAGE
         _must_learn &= self.t_step % self.config.learn_detection_every == 0
         _must_learn &= len(self.image_buffer) > self.config.image_batch_size
-
         return _must_learn
+    
+    def _must_labelize_image(self) -> bool:
+        _must_labelize = True
+        _must_labelize &= self.context.input_type == INPUT.IMAGE
+        _must_labelize &= self.t_step % self.config.add_image_every == 0
+        return _must_labelize
+    
+    def convert_state_to_torch(self, state) -> torch.tensor:
+        if self.context.input_type == INPUT.IMAGE:
+            return torch.from_numpy(np.moveaxis(state, 3, 1)).float().to(self.config.device)
+        elif self.context.input_type == INPUT.VECTOR:
+            return torch.from_numpy(state).float().to(self.config.device)
+        else:
+            raise Exception(f'unknow input_type {self.config.input_type}')
