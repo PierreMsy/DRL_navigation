@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from drl_nav.utils.image_utils import (
     rgb_to_hsv, is_yellow, is_blue, to_np_image
 )
+from drl_nav.network.utils import initializer_fc_layers
 
 
 class QNet(nn.Module):
@@ -28,9 +29,14 @@ class QNet(nn.Module):
         ])
         self.output_layer = nn.Linear(self.hidden_layers_dim[-1], action_size)
 
+        self = initializer_fc_layers(self)
         self.optimizer = torch.optim.Adam(self.parameters()) # set the learning rate
         
-    def forward(self, x):
+    def forward(self, x) -> torch.tensor:
+        """
+        Returns:
+            torch.rensor [action_size]: action value for all actions. 
+        """
         
         x = self.body(x)
         
@@ -49,6 +55,7 @@ class AuxNet(nn.Module):
     def __init__(self, body, n_directions=3, n_colors=2):
         super(AuxNet, self).__init__()
         self.body = body
+        #TODO variabilize
         self.hidden_layers_dim = [2888, 128]
 
         self.hidden_layers = nn.ModuleList([
@@ -79,7 +86,6 @@ class LabelizerNet(nn.Module):
         self.avg_pool = nn.AvgPool2d(kernel_size=6, stride=2)        
     
     def forward(self, state: torch.Tensor) -> torch.Tensor:
-        # TODO process multiple image at once.
         """
         Parse the input state to detect directionally near bananas.
         
