@@ -83,10 +83,12 @@ class Network:
         type=None,
         hidden_layers=[],
         input_size: int=None,
+        learning_rate:int=None,
         ) -> None:
         self.input_size = input_size
         self.hidden_layers = hidden_layers
         self.type = type
+        self.learning_rate = learning_rate
         
     def to_dict(self):
         return vars(self)

@@ -7,14 +7,15 @@
   batch_size: 64
   image_batch_size: 128
   buffer_size: 10_000
-  image_buffer_size: 10_000
+  image_buffer_size: 4_000
   epsilon: 
     start_value: .5
     end_value: .01
-    steps: 100_000
+    steps: 200_000
   network:
     body:
       type: "conv"
       input_size: 84
     head:
       hidden_layers: [128, 64]
+      learning_rate: .0002

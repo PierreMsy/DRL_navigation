@@ -24,7 +24,7 @@ class Agent_DQN_pixel:
             config.network_head, context.action_size)
         self.q_network_target.load_state_dict(self.q_network_local.state_dict())
         self.auxiliary_network = AuxNet(network_body)
-        self.labelizer = LabelizerNet()
+        self.labelizer = LabelizerNet(config.image_batch_size)
         
         self.criterion_q = torch.nn.MSELoss()
         self.criterion_aux = torch.nn.BCELoss()
@@ -74,8 +74,11 @@ class Agent_DQN_pixel:
         self.replay_buffer.add(state, action, reward, next_state, done)
 
         if self._must_labelize_image():
-            labels_banana = self.labelizer(state)
-            self.image_buffer.add(state, labels_banana)
+            enough_states = self.labelizer.add(state)
+            if enough_states:
+                states, labels_banana = self.labelizer.labelize()
+                for state, label_banana in zip(states, labels_banana):
+                    self.image_buffer.add(state, label_banana)
 
         if self._must_learn():
             self.learn()
@@ -140,14 +143,20 @@ class Agent_DQN_pixel:
     def _must_learn_bananas_detection(self) -> bool:
         _must_learn = True
         _must_learn &= self.context.input_type == INPUT.IMAGE
-        _must_learn &= self.t_step % self.config.learn_detection_every == 0
+        if self.t_step < 10_000:
+            _must_learn &= self.t_step % self.config.learn_detection_every == 0
+        else:
+            _must_learn &= self.t_step % (self.config.learn_detection_every * 10) == 0
         _must_learn &= len(self.image_buffer) > self.config.image_batch_size
         return _must_learn
     
     def _must_labelize_image(self) -> bool:
         _must_labelize = True
         _must_labelize &= self.context.input_type == INPUT.IMAGE
-        _must_labelize &= self.t_step % self.config.add_image_every == 0
+        if self.t_step < 10_000:
+            _must_labelize &= self.t_step % self.config.add_image_every == 0
+        else:
+            _must_labelize &= self.t_step % (self.config.add_image_every * 20) == 0
         return _must_labelize
     
     def convert_state_to_torch(self, state) -> torch.tensor:
