@@ -10,7 +10,6 @@ class ConvBody(nn.Module):
     """
     def __init__(self, in_channels=3, input_size=84, **kwargs):
         super(ConvBody, self).__init__()
-
         # 84*84*3
         self.conv1 = nn.Conv2d(in_channels, 4, kernel_size=5)
         self.mp1 = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -25,6 +24,9 @@ class ConvBody(nn.Module):
 
         # 8*8*8
         self.output_size = compute_output_size(self, input_size, in_channels)
+        device = kwargs.get('device', 'cpu')
+        print(f'Body to {device}')
+        self.to(device)
 
     def forward(self, x):
 
@@ -42,7 +44,6 @@ class DummyBody(nn.Module):
     """
     def __init__(self, input_size, **kwargs):
         super(DummyBody, self).__init__()
-
         self.output_size = input_size
 
     def forward(self, x):

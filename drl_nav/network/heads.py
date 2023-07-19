@@ -33,6 +33,7 @@ class QNet(nn.Module):
         self.optimizer = torch.optim.Adam(
             self.parameters(),
             lr=config.learning_rate)
+        self.to(config.device)
         
     def forward(self, x) -> torch.tensor:
         """
@@ -53,7 +54,7 @@ class AuxNet(nn.Module):
     Network that will help training the convolutional body by predicting the
     presence of bananas in each direction (left, front, right).
     """
-    def __init__(self, body, n_directions=3, n_colors=2):
+    def __init__(self, body, config, n_directions=3, n_colors=2):
         super(AuxNet, self).__init__()
         self.body = body
         self.hidden_layers_dim = [self.body.output_size] + [128]
@@ -64,7 +65,10 @@ class AuxNet(nn.Module):
         ])
         self.output_layer = nn.Linear(self.hidden_layers_dim[-1], n_directions * n_colors)
 
-        self.optimizer = torch.optim.Adam(self.parameters()) # set the learning rate
+        self.optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=config.learning_rate) # set the learning rate
+        self.to(config.device)
 
     def forward(self, state):
 
@@ -83,12 +87,14 @@ class LabelizerNet(nn.Module):
     Stores states until states_buffer_limit is reached and then labelize
     in batch.
     """
-    def __init__(self, states_buffer_limit:int, n_pannels: int=3) -> None:
+    def __init__(self, config, states_buffer_limit:int, n_pannels: int=3) -> None:
         super(LabelizerNet, self).__init__()
         self.states_buffer_limit = states_buffer_limit
         self.n_pannels = n_pannels # left middle right
         self.avg_pool = nn.AvgPool2d(kernel_size=6, stride=2)        
         self.states_to_labelize = []
+        self.device = config.device
+        self.to(config.device)
     
     def add(self, state: torch.Tensor) -> bool:
         """Add a state to the buffer and retrun if the size limit has been reached"""
@@ -98,7 +104,7 @@ class LabelizerNet(nn.Module):
             
     def labelize(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """labelize all the buffered states an empty the buffer"""
-        states = torch.stack(self.states_to_labelize)
+        states = torch.stack(self.states_to_labelize).to(self.device)
         labels_banana = self.forward(states)
         self.states_to_labelize = []
 
@@ -146,6 +152,6 @@ class LabelizerNet(nn.Module):
         labels_blue = np.stack(labels_blue, axis=1)
             
         labels_banana = np.concatenate((labels_yellow, labels_blue), axis=1).astype(float)
-        labels_banana = torch.from_numpy(labels_banana)
+        labels_banana = torch.from_numpy(labels_banana).to(self.device)
             
         return labels_banana

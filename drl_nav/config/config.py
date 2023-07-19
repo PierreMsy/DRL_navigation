@@ -1,5 +1,6 @@
 import os
 import yaml
+import torch
 
 
 PATH_YML_DQN = os.path.join(
@@ -28,6 +29,9 @@ class AgentConfiguration:
         # Load base configuration
         with open(PATH_YML_DQN, "r") as f_yml:
             self.dict_config = yaml.safe_load(f_yml)
+        if device is None:
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            print(f'Device set to {device}')
 
         # Update config dict based on the provided specific configurations    
         update_dict(self.dict_config['epsilon'], epsilon)
@@ -45,6 +49,9 @@ class AgentConfiguration:
         self.set_attr('learn_every', learn_every)
         self.set_attr('learn_detection_every', learn_detection_every)
         self.set_attr('add_image_every', add_image_every)
+
+        self.dict_config['network']['head'].update({'device': self.device})
+        self.dict_config['network']['body'].update({'device': self.device})
         self.epsilon = Epsilon(**self.dict_config['epsilon'])
         self.network_head = Network(**self.dict_config['network']['head'])
         self.network_body = Network(**self.dict_config['network']['body'])
@@ -80,11 +87,13 @@ class Network:
     """
     def __init__(
         self,
+        device=None,
         type=None,
         hidden_layers=[],
         input_size: int=None,
         learning_rate:int=None,
         ) -> None:
+        self.device = device
         self.input_size = input_size
         self.hidden_layers = hidden_layers
         self.type = type

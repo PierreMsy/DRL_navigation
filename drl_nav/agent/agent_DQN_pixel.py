@@ -23,8 +23,8 @@ class Agent_DQN_pixel:
             NetworkCreator().create(config.network_body),
             config.network_head, context.action_size)
         self.q_network_target.load_state_dict(self.q_network_local.state_dict())
-        self.auxiliary_network = AuxNet(network_body)
-        self.labelizer = LabelizerNet(config.image_batch_size)
+        self.auxiliary_network = AuxNet(network_body, config.network_head)
+        self.labelizer = LabelizerNet(config.network_head, config.image_batch_size)
         
         self.criterion_q = torch.nn.MSELoss()
         self.criterion_aux = torch.nn.BCELoss()
@@ -36,6 +36,7 @@ class Agent_DQN_pixel:
 
         self.record_loss_image = dict()
         self.record_loss = dict()
+        self.record_q_values = dict()
         self.record_action = dict()
 
         self.t_step = 0
@@ -57,6 +58,7 @@ class Agent_DQN_pixel:
             with torch.no_grad():
                 q_values = self.q_network_local.forward(state)
             self.q_network_local.train()
+            self.record_q_values[self.t_step] = q_values
 
             action = np.argmax(q_values).item()
             self.record_action[self.t_step] = action
