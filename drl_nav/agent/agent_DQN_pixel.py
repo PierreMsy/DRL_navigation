@@ -18,10 +18,16 @@ class Agent_DQN_pixel:
         self.epsilon = ExponentialSchedule.instantiate_from_config(config)
 
         network_body = NetworkCreator().create(config.network_body)
-        self.q_network_local = QNet(network_body, config.network_head, context.action_size)
+        self.q_network_local = QNet(
+            network_body,
+            config.network_head,
+            context.action_size
+            )
         self.q_network_target = QNet(
             NetworkCreator().create(config.network_body),
-            config.network_head, context.action_size)
+            config.network_head,
+            context.action_size
+            )     
         self.q_network_target.load_state_dict(self.q_network_local.state_dict())
         self.auxiliary_network = AuxNet(network_body, config.network_head)
         self.labelizer = LabelizerNet(config.network_head, config.image_batch_size)
@@ -33,6 +39,14 @@ class Agent_DQN_pixel:
         self.image_buffer = ImageBuffer2(config.image_buffer_size, config.device)
 
         # self.mask_learning = [10_000, 20_000]
+        self.stuck_cnt = 0
+        self.stuck_actions = {
+            0: 1,
+            1: 0,
+            2: 3,
+            3: 2,
+        }
+        self.stuck_last_action = 0
 
         self.record_loss_image = dict()
         self.record_loss = dict()
@@ -50,7 +64,7 @@ class Agent_DQN_pixel:
             action (int): integer corresponging to the choosen action
         """
         if np.random.rand() < self.epsilon():
-            return np.random.randint(low=0, high=self.context.action_size)
+            action = np.random.randint(low=0, high=self.context.action_size)
         else:
             state = self.convert_state_to_torch(state) 
 
@@ -63,7 +77,15 @@ class Agent_DQN_pixel:
             action = np.argmax(q_values).item()
             self.record_action[self.t_step] = action
 
-            return action 
+        # stuck part
+        if self.stuck_actions[self.stuck_last_action] == action:
+            self.stuck_cnt += 1
+            if self.stuck_cnt >= 6:
+                self.stuck_cnt = 0
+                action = np.random.randint(low=0, high=self.context.action_size)
+        self.stuck_last_action = action
+
+        return action 
 
     def step(self, state, action, reward, next_state, done):
         """
@@ -114,7 +136,7 @@ class Agent_DQN_pixel:
         with torch.no_grad():
             q_ns_local = self.q_network_local(next_states)
             q_ns_target = self.q_network_target(next_states)
-            max_q_ns = q_ns_target.gather(1, torch.argmax(q_ns_local, axis=1).unsqueeze(1))
+            max_q_ns = q_ns_target.gather(1, torch.argmax(q_ns_local, dim=1).unsqueeze(1))
         q_target = rewards + self.config.gamma * max_q_ns * (1 - dones)
         q = self.q_network_local(states).gather(1, actions)
 
@@ -148,7 +170,7 @@ class Agent_DQN_pixel:
         if self.t_step < 10_000:
             _must_learn &= self.t_step % self.config.learn_detection_every == 0
         else:
-            _must_learn &= self.t_step % (self.config.learn_detection_every * 10) == 0
+            _must_learn &= self.t_step % (self.config.learn_detection_every * int(np.log(self.t_step)) * 4) == 0
         _must_learn &= len(self.image_buffer) > self.config.image_batch_size
         return _must_learn
     
@@ -158,7 +180,7 @@ class Agent_DQN_pixel:
         if self.t_step < 10_000:
             _must_labelize &= self.t_step % self.config.add_image_every == 0
         else:
-            _must_labelize &= self.t_step % (self.config.add_image_every * 20) == 0
+            _must_labelize &= self.t_step % (self.config.add_image_every * int(np.log(self.t_step)) * 8) == 0
         return _must_labelize
     
     def convert_state_to_torch(self, state) -> torch.tensor:

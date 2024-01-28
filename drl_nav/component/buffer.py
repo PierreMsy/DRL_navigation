@@ -166,7 +166,7 @@ class ReplayBuffer2():
         actions = torch.tensor(actions, dtype=torch.long).view(-1,1).to(self.device)
         rewards = torch.tensor(rewards, dtype=torch.float).view(-1,1).to(self.device)
         next_states = torch.stack(next_states).to(self.device)
-        dones = torch.tensor(dones, dtype=torch.int).view(-1,1).to(self.device)
+        dones = torch.tensor(dones, dtype=torch.float).view(-1,1).to(self.device)
 
         return states, actions, rewards, next_states, dones
     
