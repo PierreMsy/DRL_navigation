@@ -1,3 +1,4 @@
+from typing import Dict
 from torch import nn
 import torch.nn.functional as F
 
@@ -8,7 +9,16 @@ class ConvBody(nn.Module):
     """
     Convolutional network that convert pixel state into features.
     """
-    def __init__(self, in_channels=3, input_size=84, **kwargs):
+    def __init__(
+            self,
+            in_channels: int = 3,
+            input_size: int = 84,
+            **kwargs: Dict):
+        """
+        Args:
+            in_channels: number of channels of the image. Defaults to 3.
+            input_size: size of the image (given that width = height). Defaults to 84.
+        """
         super(ConvBody, self).__init__()
         # 84*84*3
         self.conv1 = nn.Conv2d(in_channels, 4, kernel_size=5)

@@ -67,7 +67,7 @@ class AuxNet(nn.Module):
 
         self.optimizer = torch.optim.Adam(
             self.parameters(),
-            lr=config.learning_rate) # set the learning rate
+            lr=config.learning_rate_image) # set the learning rate
         self.to(config.device)
 
     def forward(self, state):
