@@ -28,7 +28,7 @@ class ConvBody(nn.Module):
         self.conv2 = nn.Conv2d(4, 6, kernel_size=5)
         self.mp2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        # 18*18*16
+        # 18*18*6
         self.conv3 = nn.Conv2d(6, 8, kernel_size=3)
         self.mp3 = nn.MaxPool2d(kernel_size=2, stride=2)
 

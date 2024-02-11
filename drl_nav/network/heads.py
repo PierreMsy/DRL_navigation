@@ -1,4 +1,3 @@
-from turtle import forward
 import numpy as np
 import torch
 from torch import nn
@@ -22,7 +21,6 @@ class QNet(nn.Module):
         self.body = body
         self.action_size = action_size
         self.hidden_layers_dim = [self.body.output_size] + config.hidden_layers
-        
         self.hidden_layers = nn.ModuleList([
             nn.Linear(size_in, size_out) for size_in, size_out in
             zip(self.hidden_layers_dim[:-1],  self.hidden_layers_dim[1:])
@@ -48,6 +46,41 @@ class QNet(nn.Module):
         output = self.output_layer(x)
             
         return output
+    
+class DuelingQNet(nn.Module):
+    """
+    """
+    def __init__(self, body, config, action_size):
+        super(DuelingQNet, self).__init__()
+
+        self.body = body
+        self.action_size = action_size
+        self.hidden_layers_dim = [self.body.output_size] + config.hidden_layers
+        self.hidden_layers = nn.ModuleList([
+            nn.Linear(size_in, size_out) for size_in, size_out in
+            zip(self.hidden_layers_dim[:-1],  self.hidden_layers_dim[1:])
+        ])
+        self.value_layer = nn.Linear(self.hidden_layers_dim[-1], 1)
+        self.advantage_layer = nn.Linear(self.hidden_layers_dim[-1], action_size)
+        
+        self = initializer_fc_layers(self)
+        self.optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=config.learning_rate)
+        self.to(config.device)
+
+    def forward(self, x) -> torch.tensor:
+
+        x = self.body(x)
+        
+        for layer in self.hidden_layers:
+            x = F.relu(layer(x))
+        
+        state_value = self.value_layer(x)
+        advantage = self.advantage_layer(x)
+        Q = state_value + (advantage - advantage.mean(dim=1, keepdim=True))
+
+        return Q
 
 class AuxNet(nn.Module):
     """
@@ -67,7 +100,8 @@ class AuxNet(nn.Module):
 
         self.optimizer = torch.optim.Adam(
             self.parameters(),
-            lr=config.learning_rate_image) # set the learning rate
+            lr=config.learning_rate_image
+            )
         self.to(config.device)
 
     def forward(self, state):

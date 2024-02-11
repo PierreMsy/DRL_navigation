@@ -17,5 +17,7 @@
       type: "conv"
       input_size: 84
     head:
+      type: "qnet"
       hidden_layers: [128, 64]
       learning_rate: .0002
+      learning_rate_image: .0002

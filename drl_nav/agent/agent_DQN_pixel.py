@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from torch import nn
 
 from drl_nav.utils.schedule import ExponentialSchedule
 from drl_nav.network import QNet, AuxNet, LabelizerNet, NetworkCreator
@@ -17,17 +18,18 @@ class Agent_DQN_pixel:
         self.config = config
         self.epsilon = ExponentialSchedule.instantiate_from_config(config)
 
-        network_body = NetworkCreator().create(config.network_body)
-        self.q_network_local = QNet(
+        network_creator = NetworkCreator()
+        network_body = network_creator.create_body(config.network_body)
+        self.q_network_local = network_creator.create_head(
             network_body,
             config.network_head,
-            context.action_size
-            )
-        self.q_network_target = QNet(
-            NetworkCreator().create(config.network_body),
+            context.action_size,
+        )
+        self.q_network_target = network_creator.create_head(
+            network_creator.create_body(config.network_body),
             config.network_head,
-            context.action_size
-            )     
+            context.action_size,
+        )  
         self.q_network_target.load_state_dict(self.q_network_local.state_dict())
         self.auxiliary_network = AuxNet(network_body, config.network_head)
         self.labelizer = LabelizerNet(config.network_head, config.image_batch_size)
@@ -47,6 +49,7 @@ class Agent_DQN_pixel:
             3: 2,
         }
         self.stuck_last_action = 0
+        self.soft_max = nn.Softmax(dim=1)
 
         self.record_loss_image = dict()
         self.record_loss = dict()
@@ -55,11 +58,11 @@ class Agent_DQN_pixel:
 
         self.t_step = 0
 
-    def act(self, state):
+    def act(self, state: np.ndarray) -> int: 
         """
         Choose the an action in a given state using a espilon-greedy policy.
         Args:
-            state (_type_ ?): state where the agent is.
+            state: state where the agent is.
         Returns:
             action (int): integer corresponging to the choosen action
         """
@@ -74,7 +77,11 @@ class Agent_DQN_pixel:
             self.q_network_local.train()
             self.record_q_values[self.t_step] = q_values
 
-            action = np.argmax(q_values).item()
+            #? Deterministic policy.
+            action = np.argmax(q_values).item() 
+            #? Stochastic policy.
+            # proba = torch.squeeze(self.soft_max(q_values)).numpy()
+            # action = np.random.choice(range(self.context.action_size), p=proba)
             self.record_action[self.t_step] = action
 
         # stuck part
@@ -169,8 +176,10 @@ class Agent_DQN_pixel:
         _must_learn &= self.context.input_type == INPUT.IMAGE
         if self.t_step < 10_000:
             _must_learn &= self.t_step % self.config.learn_detection_every == 0
-        else:
+        elif self.t_step < 800_000:
             _must_learn &= self.t_step % (self.config.learn_detection_every * int(np.log(self.t_step)) * 4) == 0
+        else:
+            _must_learn = False
         _must_learn &= len(self.image_buffer) > self.config.image_batch_size
         return _must_learn
     
@@ -179,14 +188,20 @@ class Agent_DQN_pixel:
         _must_labelize &= self.context.input_type == INPUT.IMAGE
         if self.t_step < 10_000:
             _must_labelize &= self.t_step % self.config.add_image_every == 0
-        else:
+        elif self.t_step < 700_000:
             _must_labelize &= self.t_step % (self.config.add_image_every * int(np.log(self.t_step)) * 8) == 0
+        else:
+            _must_labelize = False
         return _must_labelize
     
-    def convert_state_to_torch(self, state) -> torch.tensor:
+    def convert_state_to_torch(self, state: np.ndarray) -> torch.tensor:
+        """
+        Convert state from numpy to torch and unsqueeze to transform array to 
+        a batch of 1 element.
+        """
         if self.context.input_type == INPUT.IMAGE:
             return torch.from_numpy(np.moveaxis(state, 3, 1)).float().to(self.config.device)
         elif self.context.input_type == INPUT.VECTOR:
-            return torch.from_numpy(state).float().to(self.config.device)
+            return torch.unsqueeze(torch.from_numpy(state).float(), dim=0).to(self.config.device)
         else:
             raise Exception(f'unknow input_type {self.config.input_type}')
