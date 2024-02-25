@@ -1,4 +1,5 @@
 from typing import Tuple
+from operator import attrgetter
 from math import floor
 import numpy as np
 import torch
@@ -39,3 +40,17 @@ def initializer_fc_layers(network):
             torch.nn.init.uniform_(layer.bias.data, -spread, spread)
 
     return network
+
+def get_avg_grad_by_weight(net):
+    """
+    Return the mean grad magnitude (absolute value) by layer weight.
+    """
+    avg_grad_by_weight = {}
+
+    layers_weight_name = [x for x in net.state_dict().keys() if x.endswith("weight")]
+    for attribute_name in layers_weight_name:
+        retriever = attrgetter(attribute_name)
+        weights = retriever(net)
+        avg_grad_by_weight[attribute_name] = weights.grad.abs().mean()
+        
+    return avg_grad_by_weight
